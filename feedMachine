@@ -1,0 +1,83 @@
+#include <WiFi.h>
+
+#include <PubSubClient.h>
+WiFiClient mqttClient;
+PubSubClient mqttclient(mqttClient);
+
+void mqttsubscribe(String topic)
+{
+  char *amqtt = const_cast<char*>(topic.c_str());
+  mqttclient.subscribe(amqtt);
+}
+
+#include <Servo1.h>
+
+Servo1 myservo1;
+
+#include <Tone32.h>
+
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String mqtttopic=String(topic);
+  String mqttmessage;
+  for (int i = 0; i < length; i++) {
+    mqttmessage=mqttmessage+(char)payload[i];
+}
+  if ((mqtttopic) == String("/feed")) {
+    if ((mqttmessage) == String("feed")) {
+      tone(13,131,500, 0);
+      myservo1.write(90);
+      digitalWrite(17,1);
+    }
+    if ((mqttmessage) == String("stop")) {
+      myservo1.write((-90));
+      digitalWrite(17,0);
+    }
+  }
+
+}void setup()
+{
+  Serial.begin(9600);
+  pinMode(17,OUTPUT);
+  WiFi.begin("Cody", "hello123");
+  Serial.print("Connecting");
+  int testwifi=0;
+  while (WiFi.status() != WL_CONNECTED)
+  {
+      delay(500);
+      Serial.print(".");
+      testwifi++;
+      if (testwifi>8)
+        ESP.restart();
+    }
+    Serial.println();
+    Serial.print("Connected, IP address: ");
+    Serial.println(WiFi.localIP());
+  char* mqttServer = "broker.mqttdashboard.com";
+  int mqttPort = 1883;
+  mqttclient.setServer(mqttServer, mqttPort);
+  while (!mqttclient.connected()) {
+    Serial.println("Connecting to MQTT...");
+    long a=random(0, 10000);
+    String b="ESPClient"+String(a);
+    char *c= const_cast<char*>(b.c_str());
+    if (mqttclient.connect(c)) {
+      Serial.println("connected");
+    } else {
+      Serial.print("failed with state ");
+      Serial.print(mqttclient.state());
+      delay(2000);
+    }
+  }
+  mqttclient.setCallback(callback);
+  mqttsubscribe("/feed");
+  myservo1.attach(18);
+  digitalWrite(17,0);
+  noTone(13, 0);
+}
+void loop()
+{
+mqttclient.loop();
+
+
+}
